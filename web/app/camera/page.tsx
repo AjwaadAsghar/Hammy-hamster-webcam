@@ -246,10 +246,10 @@ export default function CameraPage() {
         </p>
       )}
 
-      <div className="relative z-10 flex flex-col items-start gap-4 lg:flex-row">
+      <div className="relative z-10 flex w-full max-w-[962px] flex-col items-center gap-4 lg:max-w-none lg:flex-row lg:items-start">
       <div
-        className="overflow-hidden rounded-xl shadow-2xl ring-4 ring-white/60"
-        style={{ width: PANEL * 2 + 2 }}
+        className="w-full overflow-hidden rounded-xl shadow-2xl ring-4 ring-white/60"
+        style={{ maxWidth: PANEL * 2 + 2 }}
       >
         {/* Header */}
         <div
@@ -273,40 +273,37 @@ export default function CameraPage() {
           </span>
         </div>
 
-        {/* Meme + camera panels */}
-        <div className="flex" style={{ height: PANEL }}>
+        {/* Meme on top, camera below - stacked on mobile; side by side from
+            sm upward. */}
+        <div className="flex flex-col sm:flex-row">
           <img
             src={MEMES[gesture] ?? MEMES.default}
             alt={label}
-            width={PANEL}
-            height={PANEL}
-            style={{ width: PANEL, height: PANEL, objectFit: "cover", background: "#333" }}
+            className="aspect-square w-full object-cover sm:w-1/2"
+            style={{ background: "#333" }}
           />
-          <div style={{ width: 2, background: "rgb(55,50,50)" }} />
-          <div style={{ position: "relative", width: PANEL, height: PANEL }}>
+          <div className="h-[2px] w-full sm:h-auto sm:w-[2px]" style={{ background: "rgb(55,50,50)" }} />
+          <div className="relative aspect-square w-full sm:w-1/2">
             <video
               ref={videoRef}
               playsInline
               muted
+              className="h-full w-full object-cover"
               style={{
-                width: PANEL,
-                height: PANEL,
-                objectFit: "cover",
                 transform: "scaleX(-1)",
                 background: "#111",
               }}
             />
             {/* Hand-landmark overlay, mirrored the same way as the video so
-                drawn coordinates don't need their own mirroring logic. */}
+                drawn coordinates don't need their own mirroring logic. Its
+                drawing-buffer resolution stays fixed at PANEL and is scaled
+                visually by CSS to match whatever size the video renders at. */}
             <canvas
               ref={overlayRef}
               width={PANEL}
               height={PANEL}
+              className="absolute inset-0 h-full w-full"
               style={{
-                position: "absolute",
-                inset: 0,
-                width: PANEL,
-                height: PANEL,
                 transform: "scaleX(-1)",
                 pointerEvents: "none",
               }}
@@ -326,8 +323,8 @@ export default function CameraPage() {
 
         {/* Gesture guide */}
         <div
-          className="overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur"
-          style={{ width: PANEL, maxHeight: PANEL + 46 + 28 }}
+          className="w-full overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur lg:w-auto"
+          style={{ maxWidth: PANEL }}
         >
           <div
             className="flex items-center gap-2 px-4"

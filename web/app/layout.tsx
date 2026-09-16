@@ -13,8 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://hammy-hamster-webcam-six.vercel.app"),
   title: "Happy Birthday Stinky",
   description: "Pull faces, a hamster reacts live.",
+  openGraph: {
+    title: "Happy Birthday Stinky",
+    description: "Pull faces, a hamster reacts live.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Happy Birthday Stinky",
+    description: "Pull faces, a hamster reacts live.",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
