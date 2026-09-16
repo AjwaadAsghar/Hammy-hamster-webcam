@@ -246,17 +246,34 @@ function draw(
   }
 
   // Camera panel, mirrored, cropped to square, centered.
-  const vw = video.videoWidth || W;
-  const vh = video.videoHeight || H;
-  const side = Math.min(vw, vh);
-  const sx = (vw - side) / 2;
-  const sy = (vh - side) / 2;
-
-  ctx.save();
-  ctx.translate(W + 2 + W, HEADER_H);
-  ctx.scale(-1, 1);
-  ctx.drawImage(video, sx, sy, side, side, -W, 0, W, H);
-  ctx.restore();
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  let camDrawError: string | null = null;
+  if (vw > 0 && vh > 0) {
+    const side = Math.min(vw, vh);
+    const sx = (vw - side) / 2;
+    const sy = (vh - side) / 2;
+    try {
+      ctx.save();
+      ctx.translate(W + 2 + W, HEADER_H);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, sx, sy, side, side, -W, 0, W, H);
+      ctx.restore();
+    } catch (err) {
+      camDrawError = err instanceof Error ? err.message : String(err);
+    }
+  } else {
+    camDrawError = `no video frame yet (readyState=${video.readyState}, ${vw}x${vh})`;
+  }
+  if (camDrawError) {
+    ctx.fillStyle = "#3a1414";
+    ctx.fillRect(W + 2, HEADER_H, W, H);
+    ctx.fillStyle = "#ff8080";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textBaseline = "top";
+    wrapText(ctx, camDrawError, W + 2 + 12, HEADER_H + 12, W - 24, 16);
+    ctx.textBaseline = "middle";
+  }
 
   // Divider.
   ctx.fillStyle = "rgb(55,50,50)";
@@ -314,4 +331,28 @@ function roundRect(
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+) {
+  const words = text.split(" ");
+  let line = "";
+  let cy = y;
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, cy);
+      line = word;
+      cy += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, cy);
 }
