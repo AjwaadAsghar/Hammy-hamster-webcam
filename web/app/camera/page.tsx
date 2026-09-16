@@ -52,8 +52,13 @@ export default function CameraPage() {
 
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
 
+        // CPU delegates: running three GPU/WebGL-backed models concurrently in
+        // one tab causes them to fight over WebGL contexts (observed as
+        // repeated "Graph finished closing" / recreate churn and a fatal
+        // "Cannot read properties of null (reading 'getContext')" crash from
+        // inside the vision library). CPU delegates avoid that entirely.
         hand = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: "/models/hand_landmarker.task" },
+          baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "CPU" },
           runningMode: "VIDEO",
           numHands: 2,
           minHandDetectionConfidence: 0.6,
@@ -61,7 +66,7 @@ export default function CameraPage() {
         });
 
         face = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: "/models/face_landmarker.task" },
+          baseOptions: { modelAssetPath: "/models/face_landmarker.task", delegate: "CPU" },
           runningMode: "VIDEO",
           numFaces: 1,
           minFaceDetectionConfidence: 0.6,
@@ -70,7 +75,7 @@ export default function CameraPage() {
         });
 
         pose = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: "/models/pose_landmarker.task" },
+          baseOptions: { modelAssetPath: "/models/pose_landmarker.task", delegate: "CPU" },
           runningMode: "VIDEO",
           numPoses: 1,
           minPoseDetectionConfidence: 0.5,
@@ -95,8 +100,20 @@ export default function CameraPage() {
 
         const loop = () => {
           if (cancelled) return;
+          // A single frame throwing (e.g. a transient error from the vision
+          // library) must not stop rAF from rescheduling, or the whole feed
+          // freezes permanently on whatever last rendered.
+          try {
+            renderFrame();
+          } catch (err) {
+            console.error("frame error", err);
+          }
+          rafId = requestAnimationFrame(loop);
+        };
+
+        const renderFrame = () => {
           const now = performance.now();
-          if (video.readyState >= 2) {
+          if (video.readyState >= 2 && canvasRef.current) {
             const handResult = hand!.detectForVideo(video, now);
             const faceResult = face!.detectForVideo(video, now);
             const poseResult = pose!.detectForVideo(video, now);
@@ -138,7 +155,7 @@ export default function CameraPage() {
             if (topCount >= VOTE_MAJORITY) stableGesture = topGesture;
 
             draw(
-              canvasRef.current!,
+              canvasRef.current,
               video,
               memeImagesRef.current[stableGesture] ?? memeImagesRef.current.default,
               stableGesture,
@@ -146,7 +163,6 @@ export default function CameraPage() {
             );
             setGesture((prev) => (prev === stableGesture ? prev : stableGesture));
           }
-          rafId = requestAnimationFrame(loop);
         };
         rafId = requestAnimationFrame(loop);
       } catch (err) {
