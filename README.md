@@ -2,11 +2,16 @@
 
 Point your webcam at yourself and pull faces / gestures - a hamster meme reacts live next to your camera feed.
 
+There are two ways to run this:
+
+- **Desktop app** (`main.py`) - Python + OpenCV, runs locally
+- **Web app** (`web/`) - the same gesture detection ported to the browser (MediaPipe Tasks Vision, runs entirely client-side), deployable to Vercel - see [web/README.md](web/README.md)
+
 ## Setup (macOS)
 
 ```bash
-git clone https://github.com/catherpiee/hammyhamster.git
-cd hammyhamster
+git clone https://github.com/AjwaadAsghar/Hammy-hamster-webcam.git
+cd Hammy-hamster-webcam
 ./setup.sh
 ```
 
