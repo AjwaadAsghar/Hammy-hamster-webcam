@@ -17,14 +17,10 @@ const VOTE_MAJORITY = 7;
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [debugOn, setDebugOn] = useState(true);
   const [gesture, setGesture] = useState("default");
-  const memeImagesRef = useRef<Record<string, HTMLImageElement>>({});
-  const debugOnRef = useRef(debugOn);
-  debugOnRef.current = debugOn;
 
   useEffect(() => {
     let cancelled = false;
@@ -36,27 +32,12 @@ export default function CameraPage() {
 
     async function setup() {
       try {
-        // Preload meme images.
-        await Promise.all(
-          Object.entries(MEMES).map(
-            ([key, src]) =>
-              new Promise<void>((resolve) => {
-                const img = new Image();
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-                img.src = src;
-                memeImagesRef.current[key] = img;
-              })
-          )
-        );
-
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
 
         // CPU delegates: running three GPU/WebGL-backed models concurrently in
-        // one tab causes them to fight over WebGL contexts (observed as
-        // repeated "Graph finished closing" / recreate churn and a fatal
-        // "Cannot read properties of null (reading 'getContext')" crash from
-        // inside the vision library). CPU delegates avoid that entirely.
+        // one tab makes them fight over WebGL contexts (observed as repeated
+        // "Graph finished closing" churn and an uncaught crash from inside
+        // the vision library). CPU delegates avoid that entirely.
         hand = await HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "CPU" },
           runningMode: "VIDEO",
@@ -100,9 +81,6 @@ export default function CameraPage() {
 
         const loop = () => {
           if (cancelled) return;
-          // A single frame throwing (e.g. a transient error from the vision
-          // library) must not stop rAF from rescheduling, or the whole feed
-          // freezes permanently on whatever last rendered.
           try {
             renderFrame();
           } catch (err) {
@@ -113,55 +91,49 @@ export default function CameraPage() {
 
         const renderFrame = () => {
           const now = performance.now();
-          if (video.readyState >= 2 && canvasRef.current) {
-            const handResult = hand!.detectForVideo(video, now);
-            const faceResult = face!.detectForVideo(video, now);
-            const poseResult = pose!.detectForVideo(video, now);
+          if (video.readyState < 2) return;
 
-            const handsLandmarks = (handResult.landmarks ?? []) as Point[][];
-            const faceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
-            const faceMatrices = faceResult.facialTransformationMatrixes
-              ? faceResult.facialTransformationMatrixes.map((m) => {
-                  // Row-major 4x4 flattened -> [row][col]
-                  const d = m.data;
-                  const rows: number[][] = [];
-                  for (let r = 0; r < 4; r++) {
-                    rows.push([d[r * 4], d[r * 4 + 1], d[r * 4 + 2], d[r * 4 + 3]]);
-                  }
-                  return rows;
-                })
-              : null;
-            const poseLandmarks = (poseResult.landmarks ?? []) as Point[][];
+          const handResult = hand!.detectForVideo(video, now);
+          const faceResult = face!.detectForVideo(video, now);
+          const poseResult = pose!.detectForVideo(video, now);
 
-            const { gesture: detected } = classifyGesture(
-              handsLandmarks,
-              faceLandmarks.length ? faceLandmarks : null,
-              faceMatrices,
-              poseLandmarks.length ? poseLandmarks : null
-            );
+          const handsLandmarks = (handResult.landmarks ?? []) as Point[][];
+          const faceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
+          const faceMatrices = faceResult.facialTransformationMatrixes
+            ? faceResult.facialTransformationMatrixes.map((m) => {
+                // Row-major 4x4 flattened -> [row][col]
+                const d = m.data;
+                const rows: number[][] = [];
+                for (let r = 0; r < 4; r++) {
+                  rows.push([d[r * 4], d[r * 4 + 1], d[r * 4 + 2], d[r * 4 + 3]]);
+                }
+                return rows;
+              })
+            : null;
+          const poseLandmarks = (poseResult.landmarks ?? []) as Point[][];
 
-            votes.push(detected);
-            if (votes.length > VOTE_WINDOW) votes.shift();
-            const counts: Record<string, number> = {};
-            for (const v of votes) counts[v] = (counts[v] ?? 0) + 1;
-            let topGesture = stableGesture;
-            let topCount = 0;
-            for (const [g, c] of Object.entries(counts)) {
-              if (c > topCount) {
-                topCount = c;
-                topGesture = g;
-              }
+          const { gesture: detected } = classifyGesture(
+            handsLandmarks,
+            faceLandmarks.length ? faceLandmarks : null,
+            faceMatrices,
+            poseLandmarks.length ? poseLandmarks : null
+          );
+
+          votes.push(detected);
+          if (votes.length > VOTE_WINDOW) votes.shift();
+          const counts: Record<string, number> = {};
+          for (const v of votes) counts[v] = (counts[v] ?? 0) + 1;
+          let topGesture = stableGesture;
+          let topCount = 0;
+          for (const [g, c] of Object.entries(counts)) {
+            if (c > topCount) {
+              topCount = c;
+              topGesture = g;
             }
-            if (topCount >= VOTE_MAJORITY) stableGesture = topGesture;
-
-            draw(
-              canvasRef.current,
-              video,
-              memeImagesRef.current[stableGesture] ?? memeImagesRef.current.default,
-              stableGesture,
-              debugOnRef.current
-            );
-            setGesture((prev) => (prev === stableGesture ? prev : stableGesture));
+          }
+          if (topCount >= VOTE_MAJORITY && topGesture !== stableGesture) {
+            stableGesture = topGesture;
+            setGesture(stableGesture);
           }
         };
         rafId = requestAnimationFrame(loop);
@@ -191,6 +163,8 @@ export default function CameraPage() {
     };
   }, []);
 
+  const label = displayGestureName(gesture);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 p-4">
       <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-200">
@@ -207,188 +181,69 @@ export default function CameraPage() {
         <p className="text-sm text-zinc-400">Loading models and camera…</p>
       )}
 
-      <canvas ref={canvasRef} width={PANEL * 2 + 2} height={PANEL + 46 + 28} className="rounded-xl shadow-2xl" />
-      {/* Kept at full real size but shifted off-screen, not shrunk/faded:
-          MediaPipe reads decoded frames fine either way, but some browsers'
-          compositors skip painting a near-zero-size or opacity:0 element,
-          which made canvas drawImage() copy a stale black frame. */}
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        style={{
-          position: "fixed",
-          top: 0,
-          left: -9999,
-          width: 640,
-          height: 640,
-          pointerEvents: "none",
-        }}
-      />
+      <div
+        className="overflow-hidden rounded-xl shadow-2xl"
+        style={{ width: PANEL * 2 + 2 }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4"
+          style={{ height: 46, background: "rgb(26,22,22)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block rounded-full"
+              style={{ width: 10, height: 10, background: "rgb(90,220,100)" }}
+            />
+            <span className="text-[15px] font-semibold text-zinc-200">
+              Happy Birthday Stinky
+            </span>
+          </div>
+          <span
+            className="rounded-lg px-3.5 py-2 text-[13px] font-semibold"
+            style={{ background: "rgb(200,160,255)", color: "rgb(25,20,20)" }}
+          >
+            {label}
+          </span>
+        </div>
+
+        {/* Meme + camera panels */}
+        <div className="flex" style={{ height: PANEL }}>
+          <img
+            src={MEMES[gesture] ?? MEMES.default}
+            alt={label}
+            width={PANEL}
+            height={PANEL}
+            style={{ width: PANEL, height: PANEL, objectFit: "cover", background: "#333" }}
+          />
+          <div style={{ width: 2, background: "rgb(55,50,50)" }} />
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            style={{
+              width: PANEL,
+              height: PANEL,
+              objectFit: "cover",
+              transform: "scaleX(-1)",
+              background: "#111",
+            }}
+          />
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between px-4 text-xs"
+          style={{ height: 28, background: "rgb(18,16,16)", color: "rgb(150,150,150)" }}
+        >
+          <span>live in your browser</span>
+          <span>d: {debugOn ? "hide" : "show"} debug</span>
+        </div>
+      </div>
 
       <p className="text-xs text-zinc-500">
-        Current gesture: {displayGestureName(gesture)} · press &quot;d&quot; to toggle debug
+        Current gesture: {label} · press &quot;d&quot; to toggle debug
       </p>
     </div>
   );
-}
-
-function draw(
-  canvas: HTMLCanvasElement,
-  video: HTMLVideoElement,
-  memeImg: HTMLImageElement,
-  gesture: string,
-  debugOn: boolean
-) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const HEADER_H = 46;
-  const FOOTER_H = 28;
-  const W = PANEL;
-  const H = PANEL;
-
-  ctx.fillStyle = "rgb(26,22,22)";
-  ctx.fillRect(0, 0, canvas.width, HEADER_H);
-  ctx.fillStyle = "rgb(18,16,16)";
-  ctx.fillRect(0, HEADER_H + H, canvas.width, FOOTER_H);
-
-  // Meme panel.
-  if (memeImg.complete && memeImg.naturalWidth > 0) {
-    ctx.drawImage(memeImg, 0, HEADER_H, W, H);
-  } else {
-    ctx.fillStyle = "#333";
-    ctx.fillRect(0, HEADER_H, W, H);
-  }
-
-  // Camera panel, mirrored, cropped to square, centered.
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  let camDrawError: string | null = null;
-  if (vw > 0 && vh > 0) {
-    const side = Math.min(vw, vh);
-    const sx = (vw - side) / 2;
-    const sy = (vh - side) / 2;
-    try {
-      ctx.save();
-      ctx.translate(W + 2 + W, HEADER_H);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, sx, sy, side, side, -W, 0, W, H);
-      ctx.restore();
-    } catch (err) {
-      camDrawError = err instanceof Error ? err.message : String(err);
-    }
-  } else {
-    camDrawError = `no video frame yet (readyState=${video.readyState}, ${vw}x${vh})`;
-  }
-  if (camDrawError) {
-    ctx.fillStyle = "#3a1414";
-    ctx.fillRect(W + 2, HEADER_H, W, H);
-    ctx.fillStyle = "#ff8080";
-    ctx.font = "12px system-ui, sans-serif";
-    ctx.textBaseline = "top";
-    wrapText(ctx, camDrawError, W + 2 + 12, HEADER_H + 12, W - 24, 16);
-    ctx.textBaseline = "middle";
-  }
-
-  // Always-on diagnostic: sample an actual painted pixel from the middle of
-  // the camera panel so we can tell real black frames apart from a paint
-  // that silently didn't happen.
-  try {
-    const sampleX = W + 2 + Math.floor(W / 2);
-    const sampleY = HEADER_H + Math.floor(H / 2);
-    const px = ctx.getImageData(sampleX, sampleY, 1, 1).data;
-    ctx.fillStyle = "yellow";
-    ctx.font = "11px monospace";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText(
-      `vw=${vw} vh=${vh} rs=${video.readyState} px=${px[0]},${px[1]},${px[2]}`,
-      W + 12,
-      HEADER_H + H - 10
-    );
-    ctx.textBaseline = "middle";
-  } catch {
-    // ignore
-  }
-
-  // Divider.
-  ctx.fillStyle = "rgb(55,50,50)";
-  ctx.fillRect(W - 1, HEADER_H, 2, H);
-
-  // Header: live dot + title.
-  ctx.fillStyle = "rgb(90,220,100)";
-  ctx.beginPath();
-  ctx.arc(18, HEADER_H / 2, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "rgb(235,235,235)";
-  ctx.font = "600 15px system-ui, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText("Happy Birthday Stinky", 32, HEADER_H / 2 + 1);
-
-  // Gesture pill.
-  const label = displayGestureName(gesture);
-  ctx.font = "600 13px system-ui, sans-serif";
-  const labelW = ctx.measureText(label).width;
-  const padX = 14,
-    padY = 8;
-  const pillW = labelW + padX * 2;
-  const pillH = 16 + padY * 2;
-  const pillX0 = canvas.width - pillW - 16;
-  const pillY0 = (HEADER_H - pillH) / 2;
-  ctx.fillStyle = "rgb(200,160,255)";
-  roundRect(ctx, pillX0, pillY0, pillW, pillH, 8);
-  ctx.fill();
-  ctx.fillStyle = "rgb(25,20,20)";
-  ctx.fillText(label, pillX0 + padX, pillY0 + pillH / 2 + 1);
-
-  // Footer hints.
-  ctx.fillStyle = "rgb(150,150,150)";
-  ctx.font = "12px system-ui, sans-serif";
-  const footerY = HEADER_H + H + FOOTER_H / 2 + 1;
-  ctx.fillText("live in your browser", 16, footerY);
-  const debugHint = debugOn ? "d: hide debug" : "d: show debug";
-  const debugW = ctx.measureText(debugHint).width;
-  ctx.fillText(debugHint, canvas.width - debugW - 16, footerY);
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number
-) {
-  const words = text.split(" ");
-  let line = "";
-  let cy = y;
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, cy);
-      line = word;
-      cy += lineHeight;
-    } else {
-      line = test;
-    }
-  }
-  if (line) ctx.fillText(line, x, cy);
 }
