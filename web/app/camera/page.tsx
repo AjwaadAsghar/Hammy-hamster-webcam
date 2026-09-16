@@ -27,7 +27,7 @@ const VOTE_MAJORITY = 7;
 // a fraction of frames cuts CPU-delegate inference cost substantially
 // without hurting accuracy.
 const FACE_EVERY_N = 2;
-const POSE_EVERY_N = 4;
+const POSE_EVERY_N = 3;
 
 const HAND_CONNECTIONS: [number, number][] = [
   [0, 1], [1, 2], [2, 3], [3, 4],
@@ -93,7 +93,7 @@ export default function CameraPage() {
         // pixels per frame means noticeably cheaper CPU-delegate inference,
         // with no visible quality loss once scaled up to PANEL size.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 400 }, height: { ideal: 400 } },
+          video: { width: { ideal: 480 }, height: { ideal: 480 } },
           audio: false,
         });
         if (cancelled) return;
