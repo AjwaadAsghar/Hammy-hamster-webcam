@@ -15,12 +15,31 @@ const PANEL = 480; // meme/cam panel size (px)
 const VOTE_WINDOW = 12;
 const VOTE_MAJORITY = 7;
 
+// Only hand tracking needs to run every frame for gestures to feel
+// responsive. Face and pose move slowly by comparison, so running them on
+// a fraction of frames cuts CPU-delegate inference cost substantially
+// without hurting accuracy.
+const FACE_EVERY_N = 2;
+const POSE_EVERY_N = 3;
+
+const HAND_CONNECTIONS: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  [0, 17],
+];
+
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [debugOn, setDebugOn] = useState(true);
   const [gesture, setGesture] = useState("default");
+  const debugOnRef = useRef(debugOn);
+  debugOnRef.current = debugOn;
 
   useEffect(() => {
     let cancelled = false;
@@ -63,8 +82,11 @@ export default function CameraPage() {
           minTrackingConfidence: 0.5,
         });
 
+        // Lower capture resolution than the display panel needs: fewer
+        // pixels per frame means noticeably cheaper CPU-delegate inference,
+        // with no visible quality loss once scaled up to PANEL size.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 640 },
+          video: { width: { ideal: 480 }, height: { ideal: 480 } },
           audio: false,
         });
         if (cancelled) return;
@@ -78,6 +100,10 @@ export default function CameraPage() {
 
         const votes: string[] = [];
         let stableGesture = "default";
+        let frameCount = 0;
+        let lastFaceLandmarks: Point[][] = [];
+        let lastFaceMatrices: number[][][] | null = null;
+        let lastPoseLandmarks: Point[][] = [];
 
         const loop = () => {
           if (cancelled) return;
@@ -93,30 +119,37 @@ export default function CameraPage() {
           const now = performance.now();
           if (video.readyState < 2) return;
 
-          const handResult = hand!.detectForVideo(video, now);
-          const faceResult = face!.detectForVideo(video, now);
-          const poseResult = pose!.detectForVideo(video, now);
+          frameCount += 1;
 
+          const handResult = hand!.detectForVideo(video, now);
           const handsLandmarks = (handResult.landmarks ?? []) as Point[][];
-          const faceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
-          const faceMatrices = faceResult.facialTransformationMatrixes
-            ? faceResult.facialTransformationMatrixes.map((m) => {
-                // Row-major 4x4 flattened -> [row][col]
-                const d = m.data;
-                const rows: number[][] = [];
-                for (let r = 0; r < 4; r++) {
-                  rows.push([d[r * 4], d[r * 4 + 1], d[r * 4 + 2], d[r * 4 + 3]]);
-                }
-                return rows;
-              })
-            : null;
-          const poseLandmarks = (poseResult.landmarks ?? []) as Point[][];
+
+          if (frameCount % FACE_EVERY_N === 0) {
+            const faceResult = face!.detectForVideo(video, now);
+            lastFaceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
+            lastFaceMatrices = faceResult.facialTransformationMatrixes
+              ? faceResult.facialTransformationMatrixes.map((m) => {
+                  // Row-major 4x4 flattened -> [row][col]
+                  const d = m.data;
+                  const rows: number[][] = [];
+                  for (let r = 0; r < 4; r++) {
+                    rows.push([d[r * 4], d[r * 4 + 1], d[r * 4 + 2], d[r * 4 + 3]]);
+                  }
+                  return rows;
+                })
+              : null;
+          }
+
+          if (frameCount % POSE_EVERY_N === 0) {
+            const poseResult = pose!.detectForVideo(video, now);
+            lastPoseLandmarks = (poseResult.landmarks ?? []) as Point[][];
+          }
 
           const { gesture: detected } = classifyGesture(
             handsLandmarks,
-            faceLandmarks.length ? faceLandmarks : null,
-            faceMatrices,
-            poseLandmarks.length ? poseLandmarks : null
+            lastFaceLandmarks.length ? lastFaceLandmarks : null,
+            lastFaceMatrices,
+            lastPoseLandmarks.length ? lastPoseLandmarks : null
           );
 
           votes.push(detected);
@@ -135,6 +168,8 @@ export default function CameraPage() {
             stableGesture = topGesture;
             setGesture(stableGesture);
           }
+
+          drawOverlay(overlayRef.current, video, handsLandmarks, debugOnRef.current);
         };
         rafId = requestAnimationFrame(loop);
       } catch (err) {
@@ -217,18 +252,35 @@ export default function CameraPage() {
             style={{ width: PANEL, height: PANEL, objectFit: "cover", background: "#333" }}
           />
           <div style={{ width: 2, background: "rgb(55,50,50)" }} />
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            style={{
-              width: PANEL,
-              height: PANEL,
-              objectFit: "cover",
-              transform: "scaleX(-1)",
-              background: "#111",
-            }}
-          />
+          <div style={{ position: "relative", width: PANEL, height: PANEL }}>
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              style={{
+                width: PANEL,
+                height: PANEL,
+                objectFit: "cover",
+                transform: "scaleX(-1)",
+                background: "#111",
+              }}
+            />
+            {/* Hand-landmark overlay, mirrored the same way as the video so
+                drawn coordinates don't need their own mirroring logic. */}
+            <canvas
+              ref={overlayRef}
+              width={PANEL}
+              height={PANEL}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: PANEL,
+                height: PANEL,
+                transform: "scaleX(-1)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
         </div>
 
         {/* Footer */}
@@ -246,4 +298,54 @@ export default function CameraPage() {
       </p>
     </div>
   );
+}
+
+function drawOverlay(
+  canvas: HTMLCanvasElement | null,
+  video: HTMLVideoElement,
+  handsLandmarks: Point[][],
+  debugOn: boolean
+) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!debugOn || !handsLandmarks.length) return;
+
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return;
+
+  // Video is displayed with object-fit: cover into a square panel, which
+  // crops to a centered square of the smaller native dimension - map
+  // normalized landmark coords through that same crop to land correctly.
+  const side = Math.min(vw, vh);
+  const cropX0 = (vw - side) / 2;
+  const cropY0 = (vh - side) / 2;
+  const scale = PANEL / side;
+
+  const toPanel = (p: Point): [number, number] => [
+    (p.x * vw - cropX0) * scale,
+    (p.y * vh - cropY0) * scale,
+  ];
+
+  for (const landmarks of handsLandmarks) {
+    const points = landmarks.map(toPanel);
+    ctx.strokeStyle = "#00ff00";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (const [a, b] of HAND_CONNECTIONS) {
+      ctx.moveTo(points[a][0], points[a][1]);
+      ctx.lineTo(points[b][0], points[b][1]);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "#ff0000";
+    for (const [x, y] of points) {
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
