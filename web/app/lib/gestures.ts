@@ -2,28 +2,54 @@
 
 export type Point = { x: number; y: number; z?: number; visibility?: number };
 
-export const GESTURE_GUIDE: { doThis: string; youGet: string }[] = [
-  { doThis: "Nothing / no match", youGet: "poker face hamster" },
-  { doThis: "Thumbs up (away from your face)", youGet: "thumbs up hamster" },
-  { doThis: "Thumbs down (away from your face)", youGet: "thumbs down hamster" },
-  { doThis: "Closed fist held beside your head", youGet: "lollipop hamster" },
-  { doThis: "Pinch (thumb + index touching) near your face", youGet: "glasses hamster" },
-  { doThis: "Index finger near your mouth", youGet: "finger-near-mouth hamster" },
-  { doThis: "Index finger up, away from your mouth", youGet: "nerd hamster" },
+export const GESTURE_GUIDE: { key: string; doThis: string; youGet: string }[] = [
+  { key: "default", doThis: "Nothing / no match", youGet: "poker face hamster" },
+  { key: "thumbs_up", doThis: "Thumbs up (away from your face)", youGet: "thumbs up hamster" },
   {
+    key: "thumbs_down",
+    doThis: "Thumbs down (away from your face)",
+    youGet: "thumbs down hamster",
+  },
+  {
+    key: "fist_by_head",
+    doThis: "Closed fist held beside your head",
+    youGet: "lollipop hamster",
+  },
+  {
+    key: "glasses",
+    doThis: "Pinch (thumb + index touching) near your face",
+    youGet: "glasses hamster",
+  },
+  {
+    key: "finger_mouth",
+    doThis: "Index finger near your mouth",
+    youGet: "finger-near-mouth hamster",
+  },
+  { key: "nerd", doThis: "Index finger up, away from your mouth", youGet: "nerd hamster" },
+  {
+    key: "bicep",
     doThis: "Bent elbow, wrist raised above shoulder, elbow out to the side",
     youGet: "bicep hamster",
   },
   {
+    key: "cross_arms",
     doThis: "Both wrists tucked together at chest height (hands can be hidden)",
     youGet: "crossed-arms hamster",
   },
-  { doThis: "One hand on each cheek", youGet: "shy hamster" },
-  { doThis: "Hands clasped together at mouth/chin height", youGet: "thinking hamster" },
-  { doThis: "Hands clasped together at chest height, below your face", youGet: "hug hamster" },
-  { doThis: "Head tilted down", youGet: "sad hamster" },
-  { doThis: "Two hands visible, no other match", youGet: "truck hamster" },
-  { doThis: "Turn your head to the side", youGet: "side-eye hamster" },
+  { key: "shy", doThis: "One hand on each cheek", youGet: "shy hamster" },
+  {
+    key: "thinking",
+    doThis: "Hands clasped together at mouth/chin height",
+    youGet: "thinking hamster",
+  },
+  {
+    key: "hug",
+    doThis: "Hands clasped together at chest height, below your face",
+    youGet: "hug hamster",
+  },
+  { key: "sad", doThis: "Head tilted down", youGet: "sad hamster" },
+  { key: "two_hands", doThis: "Two hands visible, no other match", youGet: "truck hamster" },
+  { key: "side_eye", doThis: "Turn your head to the side", youGet: "side-eye hamster" },
 ];
 
 export const MEMES: Record<string, string> = {

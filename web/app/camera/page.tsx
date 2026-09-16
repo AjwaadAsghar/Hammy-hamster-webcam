@@ -229,21 +229,24 @@ export default function CameraPage() {
 
       <Link
         href="/"
-        className="relative z-10 text-sm font-medium text-pink-900/70 hover:text-pink-900"
+        className="relative z-10 flex items-center gap-1 rounded-full bg-white/50 px-4 py-1.5 text-sm font-semibold text-pink-900/80 shadow-sm backdrop-blur transition-colors hover:bg-white/80 hover:text-pink-900"
       >
         &larr; back
       </Link>
 
       {status === "error" && (
-        <p className="relative z-10 max-w-md text-center text-sm font-medium text-red-700">
+        <div className="relative z-10 max-w-md rounded-xl bg-white/90 px-5 py-4 text-center text-sm font-medium text-red-700 shadow-lg backdrop-blur">
           Couldn&apos;t start the camera: {errorMsg}. Camera access needs HTTPS (or localhost)
           and browser permission.
-        </p>
+        </div>
       )}
       {status === "loading" && (
-        <p className="relative z-10 text-sm font-medium text-pink-900/80">
-          Loading models and camera…
-        </p>
+        <div className="relative z-10 flex items-center gap-3 rounded-full bg-white/50 px-5 py-2.5 shadow-sm backdrop-blur">
+          <span className="h-3 w-3 animate-ping rounded-full bg-pink-500" />
+          <span className="text-sm font-semibold text-pink-900/80">
+            Loading models and camera…
+          </span>
+        </div>
       )}
 
       <div className="relative z-10 flex w-full max-w-[962px] flex-col items-center gap-4 lg:max-w-none lg:flex-row lg:items-start">
@@ -254,20 +257,25 @@ export default function CameraPage() {
         {/* Header */}
         <div
           className="flex items-center justify-between px-4"
-          style={{ height: 46, background: "rgb(26,22,22)" }}
+          style={{
+            height: 48,
+            background: "linear-gradient(90deg, #1f1a1a, #2a2020)",
+            borderBottom: "1px solid rgba(255,150,200,0.25)",
+          }}
         >
           <div className="flex items-center gap-2">
-            <span
-              className="inline-block rounded-full"
-              style={{ width: 10, height: 10, background: "rgb(90,220,100)" }}
-            />
-            <span className="text-[15px] font-semibold text-zinc-200">
-              Happy Birthday Stinky
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            </span>
+            <span className="text-[15px] font-semibold tracking-tight text-zinc-100">
+              Happy Birthday Stinky 🎀
             </span>
           </div>
           <span
-            className="rounded-lg px-3.5 py-2 text-[13px] font-semibold"
-            style={{ background: "rgb(200,160,255)", color: "rgb(25,20,20)" }}
+            key={gesture}
+            className="animate-[pop_0.25s_ease-out] rounded-full px-3.5 py-1.5 text-[13px] font-bold shadow-sm"
+            style={{ background: "linear-gradient(90deg, #ff9ecb, #ff6fb0)", color: "#3a0d24" }}
           >
             {label}
           </span>
@@ -314,38 +322,68 @@ export default function CameraPage() {
         {/* Footer */}
         <div
           className="flex items-center justify-between px-4 text-xs"
-          style={{ height: 28, background: "rgb(18,16,16)", color: "rgb(150,150,150)" }}
+          style={{
+            height: 30,
+            background: "rgb(18,16,16)",
+            color: "rgb(150,150,150)",
+            borderTop: "1px solid rgba(255,150,200,0.12)",
+          }}
         >
-          <span>live in your browser</span>
-          <span>d: {debugOn ? "hide" : "show"} debug</span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-pink-400/70" />
+            live in your browser
+          </span>
+          <button
+            type="button"
+            onClick={() => setDebugOn((d) => !d)}
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            d: {debugOn ? "hide" : "show"} debug
+          </button>
         </div>
       </div>
 
         {/* Gesture guide */}
         <div
-          className="w-full overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur lg:w-auto"
-          style={{ maxWidth: PANEL }}
+          className="flex w-full flex-col overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur lg:w-auto"
+          style={{ maxWidth: PANEL, maxHeight: PANEL + 48 + 30 }}
         >
           <div
-            className="flex items-center gap-2 px-4"
-            style={{ height: 46, background: "linear-gradient(90deg, #ff6fb0, #ff9ecb)" }}
+            className="flex shrink-0 items-center gap-2 px-4"
+            style={{ height: 48, background: "linear-gradient(90deg, #ff6fb0, #ff9ecb)" }}
           >
             <span className="text-lg">🎀</span>
             <span className="text-[15px] font-bold text-white">Gestures to try</span>
           </div>
-          <div className="max-h-[420px] divide-y divide-pink-100 overflow-y-auto">
-            {GESTURE_GUIDE.map((g, i) => (
-              <div key={i} className="flex flex-col gap-0.5 px-4 py-2.5">
-                <span className="text-[13px] font-medium text-zinc-800">{g.doThis}</span>
-                <span className="text-[12px] font-semibold text-pink-600">→ {g.youGet}</span>
-              </div>
-            ))}
+          <div className="divide-y divide-pink-100 overflow-y-auto">
+            {GESTURE_GUIDE.map((g) => {
+              const active = g.key === gesture;
+              return (
+                <div
+                  key={g.key}
+                  className={`flex flex-col gap-0.5 px-4 py-2.5 transition-colors ${
+                    active ? "bg-pink-50" : ""
+                  }`}
+                  style={active ? { boxShadow: "inset 3px 0 0 #ff6fb0" } : undefined}
+                >
+                  <span className="text-[13px] font-medium text-zinc-800">{g.doThis}</span>
+                  <span
+                    className={`text-[12px] font-semibold ${
+                      active ? "text-pink-700" : "text-pink-600"
+                    }`}
+                  >
+                    → {g.youGet} {active ? "✨" : ""}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <p className="relative z-10 text-xs font-medium text-pink-900/70">
-        Current gesture: {label} · press &quot;d&quot; to toggle debug
+      <p className="relative z-10 rounded-full bg-white/40 px-4 py-1.5 text-xs font-medium text-pink-900/80 shadow-sm backdrop-blur">
+        Current gesture: <span className="font-bold">{label}</span> · press &quot;d&quot; to
+        toggle debug
       </p>
     </div>
   );
