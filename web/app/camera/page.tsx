@@ -15,16 +15,7 @@ import {
   displayGestureName,
   type Point,
 } from "../lib/gestures";
-
-const HEARTS = ["💗", "💕", "💖", "🎀", "💝"];
-const FLOATING_HEARTS = Array.from({ length: 18 }, (_, i) => ({
-  emoji: HEARTS[i % HEARTS.length],
-  left: Math.round((i * 137.5) % 100), // spread across width, deterministic (no hydration mismatch)
-  size: 16 + (i % 5) * 6,
-  duration: 10 + (i % 6) * 3,
-  delay: -(i * 2.3),
-  drift: (i % 2 === 0 ? 1 : -1) * (20 + (i % 4) * 15),
-}));
+import FloatingHearts from "../components/FloatingHearts";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const PANEL = 480; // meme/cam panel size (px)
@@ -234,23 +225,7 @@ export default function CameraPage() {
           "linear-gradient(160deg, #ffd6e8 0%, #ffb6d5 35%, #ff8fc4 70%, #ff6fb0 100%)",
       }}
     >
-      {FLOATING_HEARTS.map((h, i) => (
-        <span
-          key={i}
-          className="floating-heart"
-          style={
-            {
-              left: `${h.left}%`,
-              fontSize: h.size,
-              animationDuration: `${h.duration}s`,
-              animationDelay: `${h.delay}s`,
-              "--drift": `${h.drift}px`,
-            } as React.CSSProperties
-          }
-        >
-          {h.emoji}
-        </span>
-      ))}
+      <FloatingHearts />
 
       <Link
         href="/"
