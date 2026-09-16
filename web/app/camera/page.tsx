@@ -272,13 +272,16 @@ export default function CameraPage() {
               Happy Birthday Stinky 🎀
             </span>
           </div>
-          <span
-            key={gesture}
-            className="animate-[pop_0.25s_ease-out] rounded-full px-3.5 py-1.5 text-[13px] font-bold shadow-sm"
-            style={{ background: "linear-gradient(90deg, #ff9ecb, #ff6fb0)", color: "#3a0d24" }}
-          >
-            {label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-semibold text-zinc-300">gesture:</span>
+            <span
+              key={gesture}
+              className="animate-[pop_0.25s_ease-out] rounded-full px-3.5 py-1.5 text-[13px] font-bold shadow-sm"
+              style={{ background: "linear-gradient(90deg, #ff9ecb, #ff6fb0)", color: "#3a0d24" }}
+            >
+              {label}
+            </span>
+          </div>
         </div>
 
         {/* Meme on top, camera below - stacked on mobile; side by side from
@@ -321,7 +324,7 @@ export default function CameraPage() {
 
         {/* Footer */}
         <div
-          className="flex items-center justify-between px-4 text-xs"
+          className="flex items-center justify-end px-4 text-xs"
           style={{
             height: 30,
             background: "rgb(18,16,16)",
@@ -329,10 +332,6 @@ export default function CameraPage() {
             borderTop: "1px solid rgba(255,150,200,0.12)",
           }}
         >
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-pink-400/70" />
-            live in your browser
-          </span>
           <button
             type="button"
             onClick={() => setDebugOn((d) => !d)}
@@ -382,8 +381,7 @@ export default function CameraPage() {
       </div>
 
       <p className="relative z-10 rounded-full bg-white/40 px-4 py-1.5 text-xs font-medium text-pink-900/80 shadow-sm backdrop-blur">
-        Current gesture: <span className="font-bold">{label}</span> · press &quot;d&quot; to
-        toggle debug
+        press D to show tracking
       </p>
     </div>
   );
