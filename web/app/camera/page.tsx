@@ -208,7 +208,21 @@ export default function CameraPage() {
       )}
 
       <canvas ref={canvasRef} width={PANEL * 2 + 2} height={PANEL + 46 + 28} className="rounded-xl shadow-2xl" />
-      <video ref={videoRef} className="hidden" playsInline muted />
+      {/* display:none can freeze decoded frames in some browsers, so this
+          stays in the layout (1x1, clipped, invisible) instead of hidden. */}
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        style={{
+          position: "fixed",
+          width: 1,
+          height: 1,
+          opacity: 0,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
+      />
 
       <p className="text-xs text-zinc-500">
         Current gesture: {displayGestureName(gesture)} · press &quot;d&quot; to toggle debug
