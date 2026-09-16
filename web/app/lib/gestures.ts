@@ -2,6 +2,30 @@
 
 export type Point = { x: number; y: number; z?: number; visibility?: number };
 
+export const GESTURE_GUIDE: { doThis: string; youGet: string }[] = [
+  { doThis: "Nothing / no match", youGet: "poker face hamster" },
+  { doThis: "Thumbs up (away from your face)", youGet: "thumbs up hamster" },
+  { doThis: "Thumbs down (away from your face)", youGet: "thumbs down hamster" },
+  { doThis: "Closed fist held beside your head", youGet: "lollipop hamster" },
+  { doThis: "Pinch (thumb + index touching) near your face", youGet: "glasses hamster" },
+  { doThis: "Index finger near your mouth", youGet: "finger-near-mouth hamster" },
+  { doThis: "Index finger up, away from your mouth", youGet: "nerd hamster" },
+  {
+    doThis: "Bent elbow, wrist raised above shoulder, elbow out to the side",
+    youGet: "bicep hamster",
+  },
+  {
+    doThis: "Both wrists tucked together at chest height (hands can be hidden)",
+    youGet: "crossed-arms hamster",
+  },
+  { doThis: "One hand on each cheek", youGet: "shy hamster" },
+  { doThis: "Hands clasped together at mouth/chin height", youGet: "thinking hamster" },
+  { doThis: "Hands clasped together at chest height, below your face", youGet: "hug hamster" },
+  { doThis: "Head tilted down", youGet: "sad hamster" },
+  { doThis: "Two hands visible, no other match", youGet: "truck hamster" },
+  { doThis: "Turn your head to the side", youGet: "side-eye hamster" },
+];
+
 export const MEMES: Record<string, string> = {
   default: "/memes/default.jpg",
   thumbs_up: "/memes/thumbs_up.jpg",

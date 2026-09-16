@@ -8,7 +8,23 @@ import {
   FaceLandmarker,
   PoseLandmarker,
 } from "@mediapipe/tasks-vision";
-import { MEMES, classifyGesture, displayGestureName, type Point } from "../lib/gestures";
+import {
+  MEMES,
+  GESTURE_GUIDE,
+  classifyGesture,
+  displayGestureName,
+  type Point,
+} from "../lib/gestures";
+
+const HEARTS = ["💗", "💕", "💖", "🎀", "💝"];
+const FLOATING_HEARTS = Array.from({ length: 18 }, (_, i) => ({
+  emoji: HEARTS[i % HEARTS.length],
+  left: Math.round((i * 137.5) % 100), // spread across width, deterministic (no hydration mismatch)
+  size: 16 + (i % 5) * 6,
+  duration: 10 + (i % 6) * 3,
+  delay: -(i * 2.3),
+  drift: (i % 2 === 0 ? 1 : -1) * (20 + (i % 4) * 15),
+}));
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const PANEL = 480; // meme/cam panel size (px)
@@ -201,23 +217,53 @@ export default function CameraPage() {
   const label = displayGestureName(gesture);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 p-4">
-      <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-200">
+    <div
+      className="relative flex min-h-screen flex-col items-center gap-4 overflow-x-hidden p-4"
+      style={{
+        background:
+          "linear-gradient(160deg, #ffd6e8 0%, #ffb6d5 35%, #ff8fc4 70%, #ff6fb0 100%)",
+      }}
+    >
+      {FLOATING_HEARTS.map((h, i) => (
+        <span
+          key={i}
+          className="floating-heart"
+          style={
+            {
+              left: `${h.left}%`,
+              fontSize: h.size,
+              animationDuration: `${h.duration}s`,
+              animationDelay: `${h.delay}s`,
+              "--drift": `${h.drift}px`,
+            } as React.CSSProperties
+          }
+        >
+          {h.emoji}
+        </span>
+      ))}
+
+      <Link
+        href="/"
+        className="relative z-10 text-sm font-medium text-pink-900/70 hover:text-pink-900"
+      >
         &larr; back
       </Link>
 
       {status === "error" && (
-        <p className="max-w-md text-center text-sm text-red-400">
+        <p className="relative z-10 max-w-md text-center text-sm font-medium text-red-700">
           Couldn&apos;t start the camera: {errorMsg}. Camera access needs HTTPS (or localhost)
           and browser permission.
         </p>
       )}
       {status === "loading" && (
-        <p className="text-sm text-zinc-400">Loading models and camera…</p>
+        <p className="relative z-10 text-sm font-medium text-pink-900/80">
+          Loading models and camera…
+        </p>
       )}
 
+      <div className="relative z-10 flex flex-col items-start gap-4 lg:flex-row">
       <div
-        className="overflow-hidden rounded-xl shadow-2xl"
+        className="overflow-hidden rounded-xl shadow-2xl ring-4 ring-white/60"
         style={{ width: PANEL * 2 + 2 }}
       >
         {/* Header */}
@@ -293,7 +339,30 @@ export default function CameraPage() {
         </div>
       </div>
 
-      <p className="text-xs text-zinc-500">
+        {/* Gesture guide */}
+        <div
+          className="overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur"
+          style={{ width: PANEL, maxHeight: PANEL + 46 + 28 }}
+        >
+          <div
+            className="flex items-center gap-2 px-4"
+            style={{ height: 46, background: "linear-gradient(90deg, #ff6fb0, #ff9ecb)" }}
+          >
+            <span className="text-lg">🎀</span>
+            <span className="text-[15px] font-bold text-white">Gestures to try</span>
+          </div>
+          <div className="max-h-[420px] divide-y divide-pink-100 overflow-y-auto">
+            {GESTURE_GUIDE.map((g, i) => (
+              <div key={i} className="flex flex-col gap-0.5 px-4 py-2.5">
+                <span className="text-[13px] font-medium text-zinc-800">{g.doThis}</span>
+                <span className="text-[12px] font-semibold text-pink-600">→ {g.youGet}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="relative z-10 text-xs font-medium text-pink-900/70">
         Current gesture: {label} · press &quot;d&quot; to toggle debug
       </p>
     </div>
