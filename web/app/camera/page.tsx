@@ -27,7 +27,7 @@ const VOTE_MAJORITY = 7;
 // a fraction of frames cuts CPU-delegate inference cost substantially
 // without hurting accuracy.
 const FACE_EVERY_N = 2;
-const POSE_EVERY_N = 3;
+const POSE_EVERY_N = 4;
 
 const HAND_CONNECTIONS: [number, number][] = [
   [0, 1], [1, 2], [2, 3], [3, 4],
@@ -60,12 +60,15 @@ export default function CameraPage() {
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
 
-        // CPU delegates: running three GPU/WebGL-backed models concurrently in
-        // one tab makes them fight over WebGL contexts (observed as repeated
-        // "Graph finished closing" churn and an uncaught crash from inside
-        // the vision library). CPU delegates avoid that entirely.
+        // Hand tracking drives most gestures and needs to run every frame,
+        // so it gets the GPU delegate for speed/accuracy. Face and pose stay
+        // on CPU and run throttled (see FACE_EVERY_N/POSE_EVERY_N) - running
+        // all three on GPU concurrently previously caused WebGL context
+        // churn; with only one GPU-delegate graph active that risk is much
+        // lower, and a bad frame can no longer take the whole loop down
+        // (renderFrame is wrapped in try/catch below).
         hand = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "CPU" },
+          baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "GPU" },
           runningMode: "VIDEO",
           numHands: 2,
           minHandDetectionConfidence: 0.6,
@@ -90,10 +93,11 @@ export default function CameraPage() {
         });
 
         // Lower capture resolution than the display panel needs: fewer
-        // pixels per frame means noticeably cheaper CPU-delegate inference,
-        // with no visible quality loss once scaled up to PANEL size.
+        // pixels per frame means noticeably cheaper inference (especially
+        // for the CPU-delegate face/pose models), with no visible quality
+        // loss once scaled up to PANEL size.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 480 }, height: { ideal: 480 } },
+          video: { width: { ideal: 384 }, height: { ideal: 384 } },
           audio: false,
         });
         if (cancelled) return;
