@@ -145,11 +145,13 @@ export default function CameraPage() {
             lastFaceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
             lastFaceMatrices = faceResult.facialTransformationMatrixes
               ? faceResult.facialTransformationMatrixes.map((m) => {
-                  // Row-major 4x4 flattened -> [row][col]
+                  // MediaPipe packs this as a column-major 4x4 (it's meant to
+                  // be usable directly as an OpenGL model matrix), so
+                  // M[row][col] = data[col*4 + row], not data[row*4 + col].
                   const d = m.data;
                   const rows: number[][] = [];
                   for (let r = 0; r < 4; r++) {
-                    rows.push([d[r * 4], d[r * 4 + 1], d[r * 4 + 2], d[r * 4 + 3]]);
+                    rows.push([d[r], d[4 + r], d[8 + r], d[12 + r]]);
                   }
                   return rows;
                 })
@@ -161,7 +163,7 @@ export default function CameraPage() {
             lastPoseLandmarks = (poseResult.landmarks ?? []) as Point[][];
           }
 
-          const { gesture: detected } = classifyGesture(
+          const { gesture: detected, yawDeg, pitchDeg } = classifyGesture(
             handsLandmarks,
             lastFaceLandmarks.length ? lastFaceLandmarks : null,
             lastFaceMatrices,
@@ -185,7 +187,15 @@ export default function CameraPage() {
             setGesture(stableGesture);
           }
 
-          drawOverlay(overlayRef.current, video, handsLandmarks, debugOnRef.current);
+          drawOverlay(
+            overlayRef.current,
+            video,
+            handsLandmarks,
+            debugOnRef.current,
+            yawDeg,
+            pitchDeg,
+            lastFaceLandmarks.length > 0
+          );
         };
         rafId = requestAnimationFrame(loop);
       } catch (err) {
@@ -373,14 +383,38 @@ function drawOverlay(
   canvas: HTMLCanvasElement | null,
   video: HTMLVideoElement,
   handsLandmarks: Point[][],
-  debugOn: boolean
+  debugOn: boolean,
+  yawDeg: number | null,
+  pitchDeg: number | null,
+  faceDetected: boolean
 ) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!debugOn || !handsLandmarks.length) return;
+  if (!debugOn) return;
+
+  // Debug readout (mirrored back upright via a canvas-local flip, since the
+  // whole canvas element is CSS-mirrored for the hand overlay).
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-canvas.width, 0);
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(0, 0, 230, 26);
+  ctx.font = "13px monospace";
+  ctx.fillStyle = "#ffff66";
+  ctx.textBaseline = "top";
+  const yawText = yawDeg !== null ? yawDeg.toFixed(1) : "n/a";
+  const pitchText = pitchDeg !== null ? pitchDeg.toFixed(1) : "n/a";
+  ctx.fillText(
+    `face=${faceDetected ? "yes" : "no"} yaw=${yawText} pitch=${pitchText}`,
+    8,
+    6
+  );
+  ctx.restore();
+
+  if (!handsLandmarks.length) return;
 
   const vw = video.videoWidth;
   const vh = video.videoHeight;
