@@ -60,15 +60,13 @@ export default function CameraPage() {
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_URL);
 
-        // Hand tracking drives most gestures and needs to run every frame,
-        // so it gets the GPU delegate for speed/accuracy. Face and pose stay
-        // on CPU and run throttled (see FACE_EVERY_N/POSE_EVERY_N) - running
-        // all three on GPU concurrently previously caused WebGL context
-        // churn; with only one GPU-delegate graph active that risk is much
-        // lower, and a bad frame can no longer take the whole loop down
-        // (renderFrame is wrapped in try/catch below).
+        // CPU delegates on all three: GPU delegate on hand made things
+        // laggier in practice (GPU driver/context overhead outweighing any
+        // inference speedup on at least some hardware), so back to CPU
+        // across the board. Speed instead comes from lower capture
+        // resolution and throttling face/pose to a fraction of frames.
         hand = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "GPU" },
+          baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: "CPU" },
           runningMode: "VIDEO",
           numHands: 2,
           minHandDetectionConfidence: 0.6,
@@ -97,7 +95,7 @@ export default function CameraPage() {
         // for the CPU-delegate face/pose models), with no visible quality
         // loss once scaled up to PANEL size.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 384 }, height: { ideal: 384 } },
+          video: { width: { ideal: 320 }, height: { ideal: 320 } },
           audio: false,
         });
         if (cancelled) return;
@@ -135,7 +133,10 @@ export default function CameraPage() {
           const handResult = hand!.detectForVideo(video, now);
           const handsLandmarks = (handResult.landmarks ?? []) as Point[][];
 
-          if (frameCount % FACE_EVERY_N === 0) {
+          // Staggered (not just throttled) so face and pose never both run
+          // on the same frame - avoids a periodic cost spike every few
+          // frames where all three models fire at once.
+          if (frameCount % FACE_EVERY_N === 1) {
             const faceResult = face!.detectForVideo(video, now);
             lastFaceLandmarks = (faceResult.faceLandmarks ?? []) as Point[][];
             lastFaceMatrices = faceResult.facialTransformationMatrixes
