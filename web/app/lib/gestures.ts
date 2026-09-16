@@ -323,15 +323,7 @@ export function classifyGesture(
     return { gesture: "hug", yawDeg, pitchDeg };
 
   if (detectCrossArms(pose)) return { gesture: "cross_arms", yawDeg, pitchDeg };
-  // Bicep is a pose-only fallback for when no hand is visible to the hand
-  // model at all (this is how a real flex silhouette usually looks - fist
-  // tucked in near the shoulder, often out of the hand model's frame). If a
-  // hand IS visible, trust that over the pose geometry: an ambiguous frame
-  // of a raised fist/thumb (bent elbow, wrist above shoulder, elbow out)
-  // satisfies the same angle heuristic as a flex and was misfiring as
-  // "bicep" whenever the hand shape read was momentarily unclear.
-  if (handsLandmarks.length === 0 && detectBicep(pose))
-    return { gesture: "bicep", yawDeg, pitchDeg };
+  if (detectBicep(pose)) return { gesture: "bicep", yawDeg, pitchDeg };
 
   if (handsLandmarks.length === 2) return { gesture: "two_hands", yawDeg, pitchDeg };
 
