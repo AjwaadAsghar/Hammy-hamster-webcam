@@ -1,30 +1,6 @@
 # Hammyhamster
 
-Point your webcam at yourself and pull faces / gestures - a hamster meme reacts live next to your camera feed.
-
-There are two ways to run this:
-
-- **Desktop app** (`main.py`) - Python + OpenCV, runs locally
-- **Web app** (`web/`) - the same gesture detection ported to the browser (MediaPipe Tasks Vision, runs entirely client-side), deployable to Vercel - see [web/README.md](web/README.md)
-
-## Setup (macOS)
-
-```bash
-git clone https://github.com/AjwaadAsghar/Hammy-hamster-webcam.git
-cd Hammy-hamster-webcam
-./setup.sh
-```
-
-`setup.sh` creates a virtual environment, installs dependencies, downloads the three MediaPipe models it needs (hand, face, and pose landmarkers), and launches the app. On the first run, macOS will prompt you to grant your Terminal camera access - allow it, then run `./setup.sh` again if the window doesn't open.
-
-To run it again later without reinstalling:
-
-```bash
-source .venv/bin/activate
-python3 main.py
-```
-
-Press `q` or `Esc` in the window to quit (or just close the window, or hit Ctrl+C in the terminal) - it cleans up the camera and models before exiting either way. Press `d` to toggle the debug readout on/off.
+Point your webcam at yourself and pull faces / gestures - a hamster meme reacts live next to your camera feed. Runs entirely in the browser - see [web/README.md](web/README.md).
 
 ## Gestures
 
@@ -48,18 +24,11 @@ Press `q` or `Esc` in the window to quit (or just close the window, or hit Ctrl+
 
 Priority order when multiple things could apply: pinch, then fist-beside-head/thumbs, then pointer (mouth/nerd), then shy/thinking/hug (two-hand shape+position), then crossed-arms/bicep (pose-based fallback), then two-hands, then head-tilt-down (sad), then head-turn (side-eye), then default.
 
-The "sad" gesture reads head pitch off the same face-transformation-matrix trick `side_eye` uses for yaw; unlike yaw, the sign wasn't verified against a live camera during development, so if it triggers on an upward tilt instead of downward, flip the sign in `head_pitch_degrees` in `main.py`.
+The "sad" gesture reads head pitch off the same face-transformation-matrix trick `side_eye` uses for yaw; if it triggers on an upward tilt instead of downward, flip the sign in `headPitchDegrees` in `web/app/lib/gestures.ts`.
 
-A debug readout in the top-left corner of the camera view shows head yaw/pitch, finger states, pinch/thumb/mouth-distance numbers, crossed-arms/bicep pose signals, and (when two hands are visible) the shy/thinking/hug distance numbers live - useful for retuning thresholds in `main.py` if a gesture feels too sensitive or insensitive for your lighting/setup. It's on by default; press `d` to hide it for a cleaner view. The current gesture is always shown as a pill in the window's header, regardless of the debug toggle.
-
-## Project layout
-
-- `main.py` - the app
-- `images/` - the meme images shown for each gesture
-- `*.task` - MediaPipe models, downloaded by `setup.sh` (not committed)
+A debug readout in the top-left of the camera feed shows face detection state and head yaw/pitch live, and a green skeleton overlay tracks your hand - useful for checking a gesture is being read correctly. It's on by default; press `d` to hide it for a cleaner view. The current gesture is always shown as a pill in the header.
 
 ## Requirements
 
-- Python 3.10+
 - A webcam
-- macOS (camera permission prompt is macOS-specific; should also run on Linux/Windows with a webcam, just without that prompt)
+- A modern browser (camera access needs HTTPS or localhost)
