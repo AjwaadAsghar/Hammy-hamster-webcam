@@ -208,18 +208,20 @@ export default function CameraPage() {
       )}
 
       <canvas ref={canvasRef} width={PANEL * 2 + 2} height={PANEL + 46 + 28} className="rounded-xl shadow-2xl" />
-      {/* display:none can freeze decoded frames in some browsers, so this
-          stays in the layout (1x1, clipped, invisible) instead of hidden. */}
+      {/* Kept at full real size but shifted off-screen, not shrunk/faded:
+          MediaPipe reads decoded frames fine either way, but some browsers'
+          compositors skip painting a near-zero-size or opacity:0 element,
+          which made canvas drawImage() copy a stale black frame. */}
       <video
         ref={videoRef}
         playsInline
         muted
         style={{
           position: "fixed",
-          width: 1,
-          height: 1,
-          opacity: 0,
-          overflow: "hidden",
+          top: 0,
+          left: -9999,
+          width: 640,
+          height: 640,
           pointerEvents: "none",
         }}
       />
