@@ -77,10 +77,6 @@ export default function Home() {
         >
           Open for your stinky fart 🎀
         </Link>
-
-        <p className="mt-6 max-w-sm text-xs font-medium text-pink-900/60">
-          Needs camera access. Nothing leaves your browser.
-        </p>
       </div>
     </div>
   );
