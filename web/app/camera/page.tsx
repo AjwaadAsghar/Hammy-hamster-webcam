@@ -291,6 +291,26 @@ function draw(
     ctx.textBaseline = "middle";
   }
 
+  // Always-on diagnostic: sample an actual painted pixel from the middle of
+  // the camera panel so we can tell real black frames apart from a paint
+  // that silently didn't happen.
+  try {
+    const sampleX = W + 2 + Math.floor(W / 2);
+    const sampleY = HEADER_H + Math.floor(H / 2);
+    const px = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+    ctx.fillStyle = "yellow";
+    ctx.font = "11px monospace";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(
+      `vw=${vw} vh=${vh} rs=${video.readyState} px=${px[0]},${px[1]},${px[2]}`,
+      W + 12,
+      HEADER_H + H - 10
+    );
+    ctx.textBaseline = "middle";
+  } catch {
+    // ignore
+  }
+
   // Divider.
   ctx.fillStyle = "rgb(55,50,50)";
   ctx.fillRect(W - 1, HEADER_H, 2, H);
