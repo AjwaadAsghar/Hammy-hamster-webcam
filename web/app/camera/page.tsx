@@ -321,31 +321,12 @@ export default function CameraPage() {
             />
           </div>
         </div>
-
-        {/* Footer */}
-        <div
-          className="flex items-center justify-end px-4 text-xs"
-          style={{
-            height: 30,
-            background: "rgb(18,16,16)",
-            color: "rgb(150,150,150)",
-            borderTop: "1px solid rgba(255,150,200,0.12)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setDebugOn((d) => !d)}
-            className="rounded-full px-2.5 py-1 text-[11px] font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            d: {debugOn ? "hide" : "show"} debug
-          </button>
-        </div>
       </div>
 
         {/* Gesture guide */}
         <div
           className="flex w-full flex-col overflow-hidden rounded-xl bg-white/90 shadow-2xl ring-4 ring-white/60 backdrop-blur lg:w-auto"
-          style={{ maxWidth: PANEL, maxHeight: PANEL + 48 + 30 }}
+          style={{ maxWidth: PANEL, maxHeight: PANEL + 48 }}
         >
           <div
             className="flex shrink-0 items-center gap-2 px-4"
@@ -380,9 +361,18 @@ export default function CameraPage() {
         </div>
       </div>
 
-      <p className="relative z-10 rounded-full bg-white/40 px-4 py-1.5 text-xs font-medium text-pink-900/80 shadow-sm backdrop-blur">
-        press D to show tracking
-      </p>
+      <button
+        type="button"
+        onClick={() => setDebugOn((d) => !d)}
+        className="relative z-10 flex items-center gap-2 rounded-full bg-white/40 px-4 py-1.5 text-xs font-semibold text-pink-900/80 shadow-sm backdrop-blur transition-colors hover:bg-white/60"
+      >
+        <span
+          className={`h-2 w-2 rounded-full transition-colors ${
+            debugOn ? "bg-emerald-500" : "bg-zinc-400"
+          }`}
+        />
+        click to turn {debugOn ? "off" : "on"} tracking
+      </button>
     </div>
   );
 }
